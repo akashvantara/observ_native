@@ -1,0 +1,7 @@
+podman network create observability
+
+podman volume create grafana-storage
+
+podman run -d --network observability -p 3100:3100 --name=loki --log-driver=k8s-file --log-opt path=~/podman-logs/loki.json --log-opt max-size=10mb -v $(pwd):/mnt/config grafana/loki:latest -config.file=/mnt/config/loki-local-config.yaml
+
+podman run -d --network observability -p 3300:3000 --name=grafana --log-driver=k8s-file --log-opt path=~/podman-logs/grafana.json --log-opt max-size=10mb --volume grafana-storage:/var/lib/grafana grafana/grafana-oss

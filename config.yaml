@@ -1,0 +1,209 @@
+receivers:
+  filelog:
+    include: [ "logs/*.log" ]
+    start_at: end
+    storage: file_storage
+    include_file_path: true
+    include_file_name: true
+    operators:
+      # Find out which format is used by kubernetes
+      - type: router
+        id: get-format
+        routes:
+          - output: parser-docker
+            expr: 'body matches "^\\{"'
+          - output: parser-crio
+            expr: 'body matches "^[^ Z]+ "'
+          - output: parser-containerd
+            expr: 'body matches "^[^ Z]+Z"'
+      # Parse CRI-O format
+      - type: regex_parser
+        id: parser-crio
+        regex: '^(?P<time>[^ Z]+) (?P<stream>stdout|stderr) (?P<logtag>[^ ]*) ?(?P<log>.*)$'
+        output: extract_metadata_from_filepath
+        timestamp:
+          parse_from: attributes.time
+          layout_type: gotime
+          layout: '2006-01-02T15:04:05.000000000-07:00'
+      # Parse CRI-Containerd format
+      - type: regex_parser
+        id: parser-containerd
+        regex: '^(?P<time>[^ ^Z]+Z) (?P<stream>stdout|stderr) (?P<logtag>[^ ]*) ?(?P<log>.*)$'
+        output: extract_metadata_from_filepath
+        timestamp:
+          parse_from: attributes.time
+          layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+      # Parse Docker format
+      - type: json_parser
+        id: parser-docker
+        output: extract_metadata_from_filepath
+        timestamp:
+          parse_from: attributes.time
+          layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+      # Extract metadata from file path
+      - type: regex_parser
+        id: extract_metadata_from_filepath
+        regex: '^.*\/(?P<namespace>[^_]+)_(?P<pod_name>[^_]+)_(?P<uid>[a-f0-9\-]+)\/(?P<container_name>[^\._]+)\/(?P<restart_count>\d+)\.log$'
+        parse_from: attributes["log.file.path"]
+      # Clean up log body
+      - type: move
+        from: attributes.log
+        to: body
+      - type: move
+        from: attributes["log.file.path"]
+        to: resource["file_path"]
+      - type: move
+        from: attributes["log.file.name"]
+        to: resource["file_name"]
+      - type: move
+        from: attributes["stream"]
+        to: resource["stream"]
+      - type: move
+        from: attributes["logtag"]
+        to: resource["log_tag"]
+  journald:
+    units:
+      - docker
+      - podman
+      - ssh
+    priority: info
+    directory: /var/log/journal/e985f09c63fe4d389fc32dd114664069
+    storage: file_storage
+  otlp:
+    protocols:
+      grpc:
+      http:
+processors:
+  attributes/insert:
+    actions:
+      - key: ENVIRONMENT
+        value: dev
+        action: insert
+      - key: CLUSTER_ID
+        value: dev-local
+        action: insert
+      - key: PROJECT_NAME
+        value: Observability Framework
+        action: insert
+      - key: BUILD_VERSION
+        value: Observability-v1.0.0-d1c19
+        action: insert
+      #- action: insert
+      #  key: loki.attribute.labels
+      #  value:
+      #    - attributes["log.file.path"]
+      #    - attributes["log.iostream"]
+      #    - attributes["logtag"]
+  batch:
+  filter/body:
+    logs:
+      exclude:
+        match_type: regexp
+        bodies:
+        - ".*/health"
+        - ".*/healthz"
+    spans:
+      exclude:
+        match_type: regexp
+        span_names:
+        - .*.health ## this is controller method name
+        - /health  ## this is api uri
+        - /healthz
+  memory_limiter:
+    limit_percentage: 85
+    check_interval: 1s
+    spike_limit_percentage: 10
+  resource/logs:
+    attributes:
+      - action: insert
+        key: loki.resource.labels
+        value: PodClusterId, BUILD_VERSION, LogStream, FilePath, LogTag, FileName
+      - key: PodClusterId
+        value: dev-mdm
+        action: insert
+      - key: BUILD_VERSION
+        value: Observability-v0.04-on_prem
+        action: insert
+      - key: LogStream
+        from_attribute: stream
+        action: insert
+      - key: FilePath
+        from_attribute: file_path
+        action: insert
+      - key: FileName
+        from_attribute: file_name
+        action: insert
+      - key: LogTag
+        from_attribute: log_tag
+        action: insert
+exporters:
+  loki/logs:
+    endpoint: http://localhost:3100/loki/api/v1/push
+    sending_queue:
+      storage: file_storage
+    tls:
+      insecure: true
+  prometheusremotewrite:
+    endpoint: http://promscale.observability-server.svc.cluster.local:9201/write
+    tls:
+      insecure: true
+  otlp/promscale:
+    endpoint: http://promscale.observability-server.svc.cluster.local:9202
+    tls:
+      insecure: true
+    sending_queue:
+      storage: file_storage
+  otlp/tempo:
+    endpoint: http://loki-tempo.prometheus.svc.cluster.local:4317
+    tls:
+      insecure: true
+    sending_queue:
+      storage: file_storage
+  logging:
+extensions:
+  file_storage:
+    directory: ./otel
+    timeout: 10s
+  health_check:
+    endpoint: "127.0.0.1:13133"
+  pprof:
+service:
+  telemetry:
+    logs:
+      level: warn
+    metrics:
+      address: 0.0.0.0:8888
+  extensions:
+    - file_storage
+    - health_check
+    - pprof
+  pipelines:
+    logs:
+      receivers:
+        - filelog
+        #- journald
+        #- otlp
+      processors:
+        - batch
+        - filter/body
+        - memory_limiter
+        - resource/logs
+      exporters:
+        - loki/logs
+        - logging
+#    metrics:
+#      receivers:
+#        - otlp
+#      processors:
+#        - attributes/insert
+#      exporters:
+#        - prometheusremotewrite
+#    traces:
+#      receivers:
+#        - otlp
+#      processors:
+#        - attributes/insert
+#        - filter/body
+#      exporters:
+#        - otlp/promscale
+#        - otlp/tempo

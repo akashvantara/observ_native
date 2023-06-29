@@ -1,0 +1,9 @@
+grafana-*.linux-amd64.tar.gz
+grafana/
+logs/
+loki-linux-amd64
+loki-linux-amd64.zip
+loki/
+otel/
+otelcol-contrib
+otelcol-contrib_*_linux_amd64.tar.gz

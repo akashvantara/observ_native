@@ -1,6 +1,7 @@
 #!/bin/sh
 
 PS=$(ps -x)
+EXIT_STATUS=""
 
 if [ $( echo $PS | grep 'loki-linux-amd64' | wc -c ) -gt 0 ]; then
 	PID=$( pidof 'loki-linux-amd64' )
@@ -8,6 +9,7 @@ if [ $( echo $PS | grep 'loki-linux-amd64' | wc -c ) -gt 0 ]; then
 	kill $PID
 else
 	echo "Loki is not running"
+	EXIT_STATUS="1"
 fi
 
 if [ $( echo $PS | grep 'grafana' | wc -c ) -gt 0 ]; then
@@ -16,6 +18,7 @@ if [ $( echo $PS | grep 'grafana' | wc -c ) -gt 0 ]; then
 	kill $PID
 else
 	echo "Grafana is not running"
+	EXIT_STATUS="1"
 fi
 
 if [ $( echo $PS | grep 'otelcol-contrib' | wc -c ) -gt 0 ]; then
@@ -24,6 +27,11 @@ if [ $( echo $PS | grep 'otelcol-contrib' | wc -c ) -gt 0 ]; then
 	kill $PID
 else
 	echo "Otel is not running"
+	EXIT_STATUS="1"
 fi
 
-exit 0
+if [ -z $EXIT_STATUS ]; then
+	exit 0
+else
+	exit 1
+fi

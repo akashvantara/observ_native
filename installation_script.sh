@@ -134,3 +134,4 @@ echo "Creating log directory for keeping logs of all observable services"
 mkdir -p logs
 
 echo "Installation done!, please proceed with run_script.sh if you want to run all the application at once"
+exit 0

@@ -9,3 +9,5 @@ rm -r otel loki grafana logs
 
 echo "Removing all the binaries"
 rm loki-linux-amd64 otelcol-contrib
+
+exit 0

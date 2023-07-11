@@ -3,6 +3,15 @@
 PS=$(ps -x)
 EXIT_STATUS=""
 
+if [ $( echo $PS | grep 'node_exporter' | wc -c ) -gt 0 ]; then
+	PID=$( pidof 'node_exporter' )
+	echo "Killing node_exporter with PID: $PID"
+	kill $PID
+else
+	echo "node_exporter is not running"
+	EXIT_STATUS="1"
+fi
+
 if [ $( echo $PS | grep 'loki-linux-amd64' | wc -c ) -gt 0 ]; then
 	PID=$( pidof 'loki-linux-amd64' )
 	echo "Killing Loki with PID: $PID"

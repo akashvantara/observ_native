@@ -4,10 +4,13 @@
 OTEL_PACKAGE_URL='https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.80.0/otelcol-contrib_0.80.0_linux_amd64.tar.gz'
 GRAFANA_PACKAGE_URL='https://dl.grafana.com/oss/release/grafana-10.0.1.linux-amd64.tar.gz'
 LOKI_PACKAGE_URL='https://github.com/grafana/loki/releases/download/v2.8.2/loki-linux-amd64.zip'
+NODE_EXPORTER_URL='https://github.com/prometheus/node_exporter/releases/download/v1.0.1/node_exporter-1.0.1.linux-amd64.tar.gz'
+
 
 OTEL_PACKAGE_NAME=$(echo $OTEL_PACKAGE_URL | rev | cut -d '/' -f 1 | rev)
 GRAFANA_PACKAGE_NAME=$(echo $GRAFANA_PACKAGE_URL | rev | cut -d '/' -f 1 | rev)
 LOKI_PACKAGE_NAME=$(echo $LOKI_PACKAGE_URL | rev | cut -d '/' -f 1 | rev)
+NODE_EXPORTER_PACKAGE_NAME=$(echo $NODE_EXPORTER_URL | rev | cut -d '/' -f 1 | rev)
 
 EXIT_REASON=''
 
@@ -54,6 +57,19 @@ fi
 # Downloading the required things
 echo "Downloading all the required package..."
 
+PACKAGE_NODE_EXPORTER='node_exporter'
+if [ -f $NODE_EXPORTER_PACKAGE_NAME ]; then
+	echo "'$PACKAGE_NODE_EXPORTER' already present!"
+else
+	IS_SUCCESS=$(curl -fLO $NODE_EXPORTER_URL)
+	if [ $? -eq 0 ]; then
+		echo "'$PACKAGE_NODE_EXPORTER' downloaded!";
+	else
+		EXIT_REASON="Cannot download '$PACKAGE_NODE_EXPORTER' for some reason"
+		abort_script
+	fi
+fi
+
 PACKAGE_OTEL='otelcol-contrib'
 if [ -f $OTEL_PACKAGE_NAME ]; then
 	echo "'$PACKAGE_OTEL' already present!"
@@ -94,6 +110,15 @@ else
 fi
 
 # Unpacking the packages
+IS_SUCCESS=$(tar -xvf $NODE_EXPORTER_PACKAGE_NAME)
+if [ $? -eq 0 ]; then
+	echo "$NODE_EXPORTER_PACKAGE_NAME unpacked!"
+	rm LICENSE README.md
+else
+	EXIT_REASON="Could not unpack '$NODE_EXPORTER_PACKAGE_NAME'"
+	abort_script
+fi
+
 IS_SUCCESS=$(tar -xvf $OTEL_PACKAGE_NAME)
 if [ $? -eq 0 ]; then
 	echo "$OTEL_PACKAGE_NAME unpacked!"

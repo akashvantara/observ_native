@@ -1,6 +1,11 @@
 #!/bin/sh
 
 PS=$(ps -x)
+IS_NODE_EXPORTER_RUNNING=""
+if [ $( echo $PS | grep 'node_exporter' | wc -c ) -gt 0 ]; then
+	IS_NODE_EXPORTER_RUNNING="y"
+fi
+
 IS_LOKI_RUNNING=""
 if [ $( echo $PS | grep 'loki-linux-amd64' | wc -c ) -gt 0 ]; then
 	IS_LOKI_RUNNING="y"
@@ -44,6 +49,13 @@ if ( [ -z "$IS_LOKI_AVAILABLE" ] || [ -z "$IS_GRAFANA_AVAILABLE" ] || [ -z "$IS_
 
 	echo "Please re-run installation script!"
 	exit 1
+fi
+
+if [ -z "$IS_NODE_EXPORTER_RUNNING" ]; then
+	echo "Staring loki in background..."
+	./node_exporter-1.0.1.linux-amd64/node_exporter  > logs/node_exporter.log 2> logs/node_exporter_err.log &
+else
+	echo "node_exporter is already running..."
 fi
 
 if [ -z "$IS_LOKI_RUNNING" ]; then

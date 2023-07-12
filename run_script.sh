@@ -16,6 +16,11 @@ if [ $( echo $PS | grep 'otelcol-contrib' | wc -c ) -gt 0 ]; then
 	IS_OTEL_RUNNING="y"
 fi
 
+IS_PODMAN_STATS_RUNNING=""
+if [ $( echo $PS | grep 'podman system' | wc -c ) -gt 0 ]; then
+	IS_PODMAN_STATS_RUNNING="y"
+fi
+
 LS=$(ls)
 IS_LOKI_AVAILABLE=""
 if ([ $(echo $LS | grep 'loki-linux-amd64' | wc -c) -gt 0 ] && [ $(echo $LS | grep 'loki-local-config.yaml' | wc -c) -gt 0 ]); then
@@ -26,6 +31,7 @@ IS_GRAFANA_AVAILABLE=""
 if [ $(echo $LS | grep 'grafana' | wc -c) -gt 0 ]; then
 	IS_GRAFANA_AVAILABLE="y"
 fi
+
 IS_OTEL_AVAILABLE=""
 if ([ $(echo $LS | grep 'otelcol-contrib' | wc -c) -gt 0 ] && [ $(echo $LS | grep 'config.yaml' | wc -c) -gt 0 ]); then
 	IS_OTEL_AVAILABLE="y"
@@ -44,6 +50,13 @@ if ( [ -z "$IS_LOKI_AVAILABLE" ] || [ -z "$IS_GRAFANA_AVAILABLE" ] || [ -z "$IS_
 
 	echo "Please re-run installation script!"
 	exit 1
+fi
+
+if [ -z "$IS_PODMAN_STATS_RUNNING" ]; then
+	echo "Staring Podman system service in background..."
+	podman system service -t 0 &
+else
+	echo "Podman system service is already running..."
 fi
 
 if [ -z "$IS_LOKI_RUNNING" ]; then

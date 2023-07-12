@@ -4,10 +4,12 @@
 OTEL_PACKAGE_URL='https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.80.0/otelcol-contrib_0.80.0_linux_amd64.tar.gz'
 GRAFANA_PACKAGE_URL='https://dl.grafana.com/oss/release/grafana-10.0.1.linux-amd64.tar.gz'
 LOKI_PACKAGE_URL='https://github.com/grafana/loki/releases/download/v2.8.2/loki-linux-amd64.zip'
+PROMSCALE_PACKAGE_URL='https://github.com/timescale/promscale/releases/download/0.17.0/promscale_0.17.0_Linux_x86_64'
 
 OTEL_PACKAGE_NAME=$(echo $OTEL_PACKAGE_URL | rev | cut -d '/' -f 1 | rev)
 GRAFANA_PACKAGE_NAME=$(echo $GRAFANA_PACKAGE_URL | rev | cut -d '/' -f 1 | rev)
 LOKI_PACKAGE_NAME=$(echo $LOKI_PACKAGE_URL | rev | cut -d '/' -f 1 | rev)
+PROMSCALE_BIN_NAME=$(echo $PROMSCALE_PACKAGE_URL | rev | cut -d '/' -f 1 | rev)
 
 EXIT_REASON=''
 
@@ -89,6 +91,21 @@ else
 		echo "'$PACKAGE_LOKI' downloaded!";
 	else
 		EXIT_REASON="Cannot download '$PACKAGE_LOKI' for some reason"
+		abort_script
+	fi
+fi
+
+PACKAGE_PROMSCALE='promscale'
+if [ -f $PROMSCALE_BIN_NAME ]; then
+	echo "'$PACKAGE_PROMSCALE' already present!"
+else
+	IS_SUCCESS=$(curl -fLO $PROMSCALE_PACKAGE_URL)
+	if [ $? -eq 0 ]; then
+		echo "'$PACKAGE_PROMSCALE' downloaded!";
+		echo "Renaming $PROMSCALE_BIN_NAME to 'promscale'"
+		mv $PROMSCALE_BIN_NAME promscale
+	else
+		EXIT_REASON="Cannot download '$PACKAGE_PROMSCALE' for some reason"
 		abort_script
 	fi
 fi

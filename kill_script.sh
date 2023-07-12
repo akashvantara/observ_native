@@ -30,6 +30,15 @@ else
 	EXIT_STATUS="1"
 fi
 
+#if [ $( echo $PS | grep 'otelcol-contrib' | wc -c ) -gt 0 ]; then
+#	PID=$( pidof 'podman system' )
+#	echo "Killing Podman system service with PID: $PID"
+#	kill $PID
+#else
+#	echo "Otel is not running"
+#	EXIT_STATUS="1"
+#fi
+
 if [ -z $EXIT_STATUS ]; then
 	exit 0
 else

@@ -15,7 +15,7 @@ kill: kill_script.sh
 	./$^
 
 tar: $(SHELL_FILES) $(YAML_FILES) $(OTHER_FILES)
-	tar cvf observ_native.tar.xz $^
+	tar czvf observ_native.tar.gz $^
 
 permissions: $(SHELL_FILES)
 	chmod +x $^

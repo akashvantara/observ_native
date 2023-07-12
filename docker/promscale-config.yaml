@@ -1,0 +1,9 @@
+db:
+  uri: postgres://postgres:start123@timescale:5432/postgres?sslmode=allow
+startup.dataset:
+  metrics:
+    compress_data: true
+    default_retention_period: 2d
+  traces:
+    compress_data: true
+    default_retention_period: 2d

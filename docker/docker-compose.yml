@@ -1,0 +1,59 @@
+version: '3.0'
+
+services:
+  timescale:
+    # TODO change to 15 when the new HA image is available
+    image: timescale/timescaledb-ha:pg15-ts2.11-all
+    ports:
+      - 5432/tcp
+    environment:
+      POSTGRES_PASSWORD: start123
+      POSTGRES_USER: postgres
+      TSTUNE_PROFILE: promscale
+    networks:
+      - mon
+
+  promscale:
+    image: timescale/promscale:latest
+    ports:
+      - 9201/tcp
+      - 9202/tcp
+    restart: on-failure
+    depends_on:
+      - timescale
+    volumes:
+      - ${PWD}/promscale-config.yaml:/promscale-config.yaml
+    networks:
+      - mon
+    environment:
+      # PROMSCALE_DB_URI: postgres://postgres:start123@timescale:5432/postgres?sslmode=allow
+      PROMSCALE_TRACING_OTLP_SERVER_ADDRESS: ":9202"
+      PROMSCALE_TELEMETRY_TRACE_OTEL_ENDPOINT: "otel-collector:4317"
+      PROMSCALE_TELEMETRY_TRACE_SAMPLING_RATIO: "0.1"
+      PROMSCALE_CONFIG: "/promscale-config.yaml"
+      PROMSCALE_CONFIG_STARTUP_DATASET_CONFIG: true
+
+  otel-collector:
+    platform: linux/amd64
+    image: "otel/opentelemetry-collector-contrib:0.80.0"
+    command: [ "--config=/otel-config.yaml" ]
+    volumes:
+      - ${PWD}/otel-config.yaml:/otel-config.yaml
+      - ${PWD}/otel:/otel
+    ports:
+      - 24224:24224
+      - 13133
+      - 4317
+      - 4318
+      - 8888
+    networks:
+      - mon
+      - log
+
+networks:
+  log:
+    name: halo_log
+    external: true
+  mon:  
+    name: halo_mon
+    external: true

@@ -1,0 +1,153 @@
+receivers:
+  fluentforward:
+    endpoint: 0.0.0.0:24224
+  otlp:
+    protocols:
+      grpc:
+      http:
+  prometheus:
+    config:
+      global:
+        scrape_interval: 150s
+        scrape_timeout: 10s
+      scrape_configs:
+      - job_name: 'node-exporter'
+        scrape_interval: 30s
+        static_configs:
+        - targets:
+          - 'mon_node-exporter:9100'
+      - job_name: 'mongodb-exporter'
+        scrape_interval: 30s
+        static_configs:
+        - targets:
+          - 'mon_mongodb-exporter:9216'
+      - job_name: 'prom'
+        scrape_interval: 30s
+        static_configs:
+             - targets: 
+               - 'mon_prom:9090'
+      - job_name: 'cadvisor'
+        scrape_interval: 30s
+        static_configs:
+             - targets: 
+               - 'mon_cadvisor:8080'
+processors:
+  attributes/insert:
+    actions:
+      - key: ENVIRONMENT
+        value: dev
+        action: insert
+      - key: CLUSTER_ID
+        value: dev-pdc
+        action: insert
+      - key: PROJECT_NAME
+        value: Observability Framework
+        action: insert
+      - key: BUILD_VERSION
+        value: Observability-v1.0.0-d1c19
+        action: insert
+  batch:
+  filter/body:
+    logs:
+      exclude:
+        match_type: regexp
+        bodies:
+        - ".*/health"
+        - ".*/healthz"
+    spans:
+      exclude:
+        match_type: regexp
+        span_names:
+        - .*.health ## this is controller method name
+        - /health  ## this is api uri
+        - /healthz
+  memory_limiter:
+    limit_percentage: 85
+    check_interval: 1s
+    spike_limit_percentage: 10
+  resource/logs:
+    attributes:
+      - action: insert
+        key: loki.resource.labels
+        value: PodClusterId, BUILD_VERSION
+      - key: PodClusterId
+        value: dev-pdc
+        action: insert
+      - key: BUILD_VERSION
+        value: Observability-v0.04-on_prem
+        action: insert
+  attributes/logs:
+    actions:
+      - action: insert
+        key: loki.attribute.labels
+        value: container_name, container_id, source, com.iotahoe.halo.tier, fluent.tag
+exporters:
+  loki/logs:
+    endpoint: http://mon_loki:3100/loki/api/v1/push
+    sending_queue:
+      storage: file_storage
+    tls:
+      insecure: true
+  prometheusremotewrite:
+    endpoint: http://promscale:9201/write
+    tls:
+      insecure: true
+  otlp/promscale:
+    endpoint: http://promscale:9202
+    tls:
+      insecure: true
+    sending_queue:
+      storage: file_storage
+  otlp/tempo:
+    endpoint: http://loki-tempo.prometheus.svc.cluster.local:4317
+    tls:
+      insecure: true
+    sending_queue:
+      storage: file_storage
+  logging:
+extensions:
+  file_storage:
+    directory: ./otel
+    timeout: 10s
+  health_check:
+    endpoint: "127.0.0.1:13133"
+  pprof:
+service:
+  telemetry:
+    logs:
+      level: debug
+    metrics:
+      address: 0.0.0.0:8888
+  extensions:
+    - file_storage
+    - health_check
+    - pprof
+  pipelines:
+    logs:
+      receivers:
+        - fluentforward
+      processors:
+        - batch
+        - filter/body
+        - memory_limiter
+        - attributes/logs
+        - resource/logs
+      exporters:
+        - loki/logs
+        - logging
+    metrics:
+      receivers:
+        - prometheus
+      processors:
+        - attributes/insert
+      exporters:
+        - prometheusremotewrite
+    traces:
+      receivers:
+        - otlp
+      processors:
+        - attributes/insert
+        - filter/body
+      exporters:
+        - otlp/promscale
+        - otlp/tempo

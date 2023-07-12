@@ -8,3 +8,4 @@ native/otel/
 native/otelcol-contrib
 native/otelcol-contrib_*_linux_amd64.tar.gz
 native/observ_native.tar.gz
+docker/docker.tar.gz

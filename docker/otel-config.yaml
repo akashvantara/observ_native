@@ -24,12 +24,12 @@ receivers:
       - job_name: 'prom'
         scrape_interval: 30s
         static_configs:
-             - targets: 
+             - targets:
                - 'mon_prom:9090'
       - job_name: 'cadvisor'
         scrape_interval: 30s
         static_configs:
-             - targets: 
+             - targets:
                - 'mon_cadvisor:8080'
 processors:
   attributes/insert:
@@ -98,13 +98,8 @@ exporters:
       insecure: true
     sending_queue:
       storage: file_storage
-  otlp/tempo:
-    endpoint: http://loki-tempo.prometheus.svc.cluster.local:4317
-    tls:
-      insecure: true
-    sending_queue:
-      storage: file_storage
   logging:
+    verbosity: detailed
 extensions:
   file_storage:
     directory: ./otel
@@ -115,7 +110,7 @@ extensions:
 service:
   telemetry:
     logs:
-      level: debug
+      level: warn
     metrics:
       address: 0.0.0.0:8888
   extensions:
@@ -127,7 +122,6 @@ service:
       receivers:
         - fluentforward
       processors:
-        - batch
         - filter/body
         - memory_limiter
         - attributes/logs
@@ -138,6 +132,7 @@ service:
     metrics:
       receivers:
         - prometheus
+        - otlp
       processors:
         - attributes/insert
       exporters:
@@ -150,4 +145,3 @@ service:
         - filter/body
       exporters:
         - otlp/promscale
-        - otlp/tempo
